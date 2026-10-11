@@ -16,9 +16,14 @@ on:
       - 'build.gradle.kts'
       - 'gradle.properties'
       - '.github/workflows/build-apk.yml'
+      - '.github/workflows/ci.yml'
 
 permissions:
   contents: read
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-apk:
@@ -41,6 +46,19 @@ jobs:
       - name: Build Android APK
         shell: bash
         run: timeout --signal=TERM --kill-after=30s 25m ./gradlew :app:assembleContinuous --no-daemon --console=plain --stacktrace --info -DskipFormatKtlint
+
+      - name: Verify APK output
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find app/build/outputs/apk/continuous -maxdepth 1 -type f -name '*.apk' -size +1M -print)
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "::error::No non-empty installable APK was produced in app/build/outputs/apk/continuous"
+            find app/build/outputs/apk -maxdepth 4 -type f -print 2>/dev/null || true
+            exit 1
+          fi
+          printf 'APK produced: %s\n' "${apks[@]}"
+          ls -lh "${apks[@]}"
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
