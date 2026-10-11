@@ -39,7 +39,8 @@ jobs:
         uses: gradle/actions/wrapper-validation@v6
 
       - name: Build Android APK
-        run: ./gradlew :app:assembleContinuous --stacktrace -DskipFormatKtlint
+        shell: bash
+        run: timeout --signal=TERM --kill-after=30s 25m ./gradlew :app:assembleContinuous --no-daemon --console=plain --stacktrace --info -DskipFormatKtlint
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
