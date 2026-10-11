@@ -525,7 +525,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Close drawer on return, and don't show animation,
         // so it looks like the drawer isn't open when the user returns to MainActivity
-        mainBinding.getRoot().closeDrawer(GravityCompat.START, false);
+        mainBinding.getRoot().closeDrawer(GravityCompat.END, false);
         try {
             final int selectedServiceId = ServiceHelper.getSelectedServiceId(this);
             final String selectedServiceName = NewPipe.getService(selectedServiceId)
