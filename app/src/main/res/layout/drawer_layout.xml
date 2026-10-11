@@ -4,7 +4,8 @@
     android:id="@+id/navigation"
     android:layout_width="wrap_content"
     android:layout_height="match_parent"
-    android:layout_gravity="start"
+    android:layout_gravity="end"
+    android:layoutDirection="rtl"
     android:background="?android:attr/windowBackground"
     android:orientation="vertical"
     app:headerLayout="@layout/drawer_header" />
