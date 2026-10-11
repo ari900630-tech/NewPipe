@@ -38,6 +38,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.webkit.WebView;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -163,6 +164,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         super.onCreate(savedInstanceState);
+        // Hide the status bar (time, battery and notification icons) for an immersive app view.
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
         sharedPrefEditor = sharedPreferences.edit();
 
