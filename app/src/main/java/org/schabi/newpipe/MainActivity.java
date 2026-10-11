@@ -798,7 +798,7 @@ public class MainActivity extends AppCompatActivity {
             if (toggle != null) {
                 toggle.syncState();
                 toolbarLayoutBinding.toolbar.setNavigationOnClickListener(v -> mainBinding.getRoot()
-                        .open());
+                        .openDrawer(GravityCompat.END));
                 mainBinding.getRoot().setDrawerLockMode(DrawerLayout.LOCK_MODE_UNDEFINED);
             }
         } else {
