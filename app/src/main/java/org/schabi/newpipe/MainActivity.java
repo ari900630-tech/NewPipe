@@ -44,6 +44,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
 import android.widget.Spinner;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -126,6 +127,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int ITEM_ID_BOOKMARKS = -3;
     private static final int ITEM_ID_DOWNLOADS = -4;
     private static final int ITEM_ID_HISTORY = -5;
+    private static final int ITEM_ID_MUSIC_SUGGESTIONS = -6;
     private static final int ITEM_ID_SETTINGS = 0;
     private static final int ITEM_ID_DONATION = 1;
     private static final int ITEM_ID_ABOUT = 2;
@@ -295,6 +297,10 @@ public class MainActivity extends AppCompatActivity {
         drawerLayoutBinding.navigation.getMenu()
                 .add(R.id.menu_tabs_group, ITEM_ID_HISTORY, ORDER, R.string.action_history)
                 .setIcon(R.drawable.ic_history);
+        drawerLayoutBinding.navigation.getMenu()
+                .add(R.id.menu_tabs_group, ITEM_ID_MUSIC_SUGGESTIONS, ORDER,
+                        R.string.music_suggestions_title)
+                .setIcon(R.drawable.ic_search);
 
         //Kiosks
         final int currentServiceId = ServiceHelper.getSelectedServiceId(this);
@@ -355,6 +361,35 @@ public class MainActivity extends AppCompatActivity {
                 .setChecked(true);
     }
 
+    private void showMusicSuggestionsDialog() {
+        final String[] genres = getResources().getStringArray(R.array.music_suggestion_genres);
+        final boolean[] checked = new boolean[genres.length];
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.music_suggestions_choose_genres)
+                .setMultiChoiceItems(genres, checked, (d, which, isChecked) ->
+                        checked[which] = isChecked)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.music_suggestions_show, (d, which) -> {
+                    final StringBuilder query = new StringBuilder("popular music");
+                    int selected = 0;
+                    for (int i = 0; i < genres.length; i++) {
+                        if (checked[i]) {
+                            query.append(' ').append(genres[i]);
+                            selected++;
+                        }
+                    }
+                    if (selected == 0) {
+                        Toast.makeText(this, R.string.music_suggestions_select_at_least_one,
+                                Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    NavigationHelper.openSearchFragment(getSupportFragmentManager(),
+                            ServiceHelper.getSelectedServiceId(this), query.toString());
+                })
+                .create();
+        dialog.show();
+    }
+
     private void tabSelected(final MenuItem item) {
         switch (item.getItemId()) {
             case ITEM_ID_SUBSCRIPTIONS:
@@ -371,6 +406,9 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case ITEM_ID_HISTORY:
                 NavigationHelper.openStatisticFragment(getSupportFragmentManager());
+                break;
+            case ITEM_ID_MUSIC_SUGGESTIONS:
+                showMusicSuggestionsDialog();
                 break;
         }
     }
