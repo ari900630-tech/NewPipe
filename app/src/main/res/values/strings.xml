@@ -905,4 +905,25 @@
     <string name="api23_requirement_dialog_title">NewPipe is dropping support for Android 5</string>
     <string name="api23_requirement_dialog_message">Unfortunately NewPipe depends on a few libraries that dropped support for Android 5.0 and 5.1. The next NewPipe release will therefore only work on devices with Android 6 or higher, sadly. Read more in the blogpost.</string>
     <string name="api23_requirement_dialog_blogpost">Blogpost</string>
+    <string name="music_suggestions_title">Music suggestions</string>
+    <string name="music_suggestions_choose_genres">Choose one or more popular music genres</string>
+    <string name="music_suggestions_show">Show songs</string>
+    <string name="music_suggestions_select_at_least_one">Select at least one music genre</string>
+    <string-array name="music_suggestion_genres">
+        <item>Pop</item>
+        <item>Rock</item>
+        <item>Hip-hop and rap</item>
+        <item>Electronic and dance</item>
+        <item>R&amp;B and soul</item>
+        <item>Latin</item>
+        <item>Country</item>
+        <item>Jazz</item>
+        <item>Classical</item>
+        <item>Reggae</item>
+        <item>K-pop</item>
+        <item>Israeli music</item>
+        <item>Arabic music</item>
+        <item>Movie soundtracks</item>
+        <item>Relaxing and lo-fi</item>
+    </string-array>
 </resources>
