@@ -386,6 +386,15 @@ public final class NavigationHelper {
                 .commit();
     }
 
+    public static void openMusicSuggestionsFragment(final FragmentManager fragmentManager,
+                                                    final int serviceId) {
+        defaultTransaction(fragmentManager)
+                .replace(R.id.fragment_holder,
+                        SearchFragment.getMusicSuggestionsInstance(serviceId))
+                .addToBackStack(SEARCH_FRAGMENT_TAG)
+                .commit();
+    }
+
     public static void expandMainPlayer(final Context context) {
         context.sendBroadcast(new Intent(VideoDetailFragment.ACTION_SHOW_MAIN_PLAYER));
     }
