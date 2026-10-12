@@ -76,6 +76,11 @@ import org.schabi.newpipe.settings.NewPipeSettings;
 import org.schabi.newpipe.util.Constants;
 import org.schabi.newpipe.util.DeviceUtils;
 import org.schabi.newpipe.util.ExtractorHelper;
+import org.schabi.newpipe.download.DownloadDialog;
+import org.schabi.newpipe.extractor.stream.StreamInfo;
+import org.schabi.newpipe.extractor.stream.StreamInfoItem;
+import org.schabi.newpipe.extractor.stream.StreamType;
+import org.schabi.newpipe.util.PermissionHelper;
 import org.schabi.newpipe.util.NavigationHelper;
 import org.schabi.newpipe.util.ServiceHelper;
 
@@ -116,6 +121,15 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
 
     @State
     int filterItemCheckedId = -1;
+
+    @State
+    boolean musicSuggestionsMode = false;
+
+    private static final int MENU_DOWNLOAD_ONE_MUSIC_ITEM = 9001;
+    private static final int MENU_DOWNLOAD_SELECTED_MUSIC_ITEMS = 9002;
+    private final List<StreamInfoItem> pendingMusicDownloads = new ArrayList<>();
+    private int pendingMusicDownloadIndex = 0;
+    private boolean musicDownloadLifecycleCallbackRegistered = false;
 
     @State
     protected int serviceId = Constants.NO_SERVICE_ID;
@@ -193,6 +207,24 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         }
 
         return searchFragment;
+    }
+
+    public static SearchFragment getMusicSuggestionsInstance(final int serviceId) {
+        final SearchFragment fragment = new SearchFragment();
+        fragment.musicSuggestionsMode = true;
+        String[] filters = new String[0];
+        try {
+            final List<String> availableFilters = NewPipe.getService(serviceId)
+                    .getSearchQHFactory().getAvailableContentFilter();
+            if (availableFilters.contains(YoutubeSearchQueryHandlerFactory.MUSIC_SONGS)) {
+                filters = new String[]{YoutubeSearchQueryHandlerFactory.MUSIC_SONGS};
+            }
+        } catch (final Exception ignored) {
+            // Fall back to a music-focused query when this service has no music filter.
+        }
+        fragment.setQuery(serviceId, "music song official audio", filters, "");
+        fragment.setSearchOnResume();
+        return fragment;
     }
 
     /**
@@ -449,6 +481,14 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
             supportActionBar.setDisplayHomeAsUpEnabled(true);
         }
 
+        if (musicSuggestionsMode) {
+            menu.add(Menu.NONE, MENU_DOWNLOAD_ONE_MUSIC_ITEM, Menu.NONE, "הורדת שיר בודד")
+                    .setIcon(R.drawable.ic_file_download);
+            menu.add(Menu.NONE, MENU_DOWNLOAD_SELECTED_MUSIC_ITEMS, Menu.NONE,
+                    "סימון כמה שירים להורדה")
+                    .setIcon(R.drawable.ic_playlist_add);
+        }
+
         int itemId = 0;
         boolean isFirstItem = true;
         final Context c = getContext();
@@ -504,9 +544,161 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
 
     @Override
     public boolean onOptionsItemSelected(@NonNull final MenuItem item) {
-        final var filter = Collections.singletonList(menuItemToFilterName.get(item.getItemId()));
-        changeContentFilter(item, filter);
+        if (musicSuggestionsMode && item.getItemId() == MENU_DOWNLOAD_ONE_MUSIC_ITEM) {
+            showSingleMusicDownloadPicker();
+            return true;
+        }
+        if (musicSuggestionsMode
+                && item.getItemId() == MENU_DOWNLOAD_SELECTED_MUSIC_ITEMS) {
+            showMultipleMusicDownloadPicker();
+            return true;
+        }
+        final String filterName = menuItemToFilterName.get(item.getItemId());
+        if (filterName == null) {
+            return super.onOptionsItemSelected(item);
+        }
+        changeContentFilter(item, Collections.singletonList(filterName));
         return true;
+    }
+
+    private List<StreamInfoItem> getMusicItems() {
+        final List<StreamInfoItem> songs = new ArrayList<>();
+        for (final org.schabi.newpipe.extractor.InfoItem item : infoListAdapter.getItemsList()) {
+            if (item instanceof StreamInfoItem) {
+                final StreamInfoItem stream = (StreamInfoItem) item;
+                if (stream.getDuration() > 0
+                        && stream.getStreamType() != StreamType.LIVE_STREAM
+                        && stream.getStreamType() != StreamType.AUDIO_LIVE_STREAM) {
+                    songs.add(stream);
+                }
+            }
+        }
+        return songs;
+    }
+
+    private void showSingleMusicDownloadPicker() {
+        final List<StreamInfoItem> songs = getMusicItems();
+        if (songs.isEmpty()) {
+            android.widget.Toast.makeText(requireContext(),
+                    "עדיין לא נטענו שירים. גלול או רענן את הרשימה.", android.widget.Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        final String[] titles = new String[songs.size()];
+        for (int i = 0; i < songs.size(); i++) {
+            titles[i] = songs.get(i).getName() + " — " + songs.get(i).getUploaderName();
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("בחר שיר להורדה")
+                .setItems(titles, (dialog, which) -> startMusicDownloads(
+                        Collections.singletonList(songs.get(which))))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void showMultipleMusicDownloadPicker() {
+        final List<StreamInfoItem> songs = getMusicItems();
+        if (songs.isEmpty()) {
+            android.widget.Toast.makeText(requireContext(),
+                    "עדיין לא נטענו שירים. גלול או רענן את הרשימה.", android.widget.Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        final String[] titles = new String[songs.size()];
+        final boolean[] checked = new boolean[songs.size()];
+        for (int i = 0; i < songs.size(); i++) {
+            titles[i] = songs.get(i).getName() + " — " + songs.get(i).getUploaderName();
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("סמן שירים להורדה")
+                .setMultiChoiceItems(titles, checked,
+                        (dialog, which, isChecked) -> checked[which] = isChecked)
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton("הורד מסומנים", (dialog, which) -> {
+                    final List<StreamInfoItem> selected = new ArrayList<>();
+                    for (int i = 0; i < songs.size(); i++) {
+                        if (checked[i]) {
+                            selected.add(songs.get(i));
+                        }
+                    }
+                    if (selected.isEmpty()) {
+                        android.widget.Toast.makeText(requireContext(),
+                                "לא סומנו שירים.", android.widget.Toast.LENGTH_SHORT).show();
+                    } else {
+                        startMusicDownloads(selected);
+                    }
+                })
+                .show();
+    }
+
+    private void startMusicDownloads(final List<StreamInfoItem> songs) {
+        if (!PermissionHelper.checkStoragePermissions(activity,
+                PermissionHelper.DOWNLOAD_DIALOG_REQUEST_CODE)) {
+            return;
+        }
+        pendingMusicDownloads.clear();
+        pendingMusicDownloads.addAll(songs);
+        pendingMusicDownloadIndex = 0;
+        if (!musicDownloadLifecycleCallbackRegistered) {
+            getFM().registerFragmentLifecycleCallbacks(
+                    new androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                        @Override
+                        public void onFragmentDetached(
+                                @NonNull final androidx.fragment.app.FragmentManager fm,
+                                @NonNull final Fragment fragment) {
+                            if (fragment instanceof DownloadDialog
+                                    && "downloadDialog".equals(fragment.getTag())) {
+                                showNextMusicDownloadDialog();
+                            }
+                        }
+                    }, false);
+            musicDownloadLifecycleCallbackRegistered = true;
+        }
+        showNextMusicDownloadDialog();
+    }
+
+    private void showNextMusicDownloadDialog() {
+        if (pendingMusicDownloadIndex >= pendingMusicDownloads.size()) {
+            pendingMusicDownloads.clear();
+            pendingMusicDownloadIndex = 0;
+            return;
+        }
+        final StreamInfoItem item = pendingMusicDownloads.get(pendingMusicDownloadIndex++);
+        disposables.add(ExtractorHelper.getStreamInfo(item.getServiceId(), item.getUrl(), false)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(info -> {
+                    if (!isAdded() || activity == null) {
+                        return;
+                    }
+                    try {
+                        new DownloadDialog(activity, info)
+                                .show(activity.getSupportFragmentManager(), "downloadDialog");
+                    } catch (final Exception e) {
+                        android.widget.Toast.makeText(requireContext(),
+                                "לא ניתן לפתוח הורדה עבור: " + item.getName(),
+                                android.widget.Toast.LENGTH_LONG).show();
+                        showNextMusicDownloadDialog();
+                    }
+                }, error -> {
+                    if (isAdded()) {
+                        android.widget.Toast.makeText(requireContext(),
+                                "לא ניתן לטעון את השיר: " + item.getName(),
+                                android.widget.Toast.LENGTH_LONG).show();
+                        showNextMusicDownloadDialog();
+                    }
+                }));
+    }
+
+    private void filterMusicSuggestions() {
+        if (!musicSuggestionsMode) {
+            return;
+        }
+        infoListAdapter.getItemsList().removeIf(item -> !(item instanceof StreamInfoItem)
+                || ((StreamInfoItem) item).getDuration() <= 0
+                || ((StreamInfoItem) item).getStreamType() == StreamType.LIVE_STREAM
+                || ((StreamInfoItem) item).getStreamType() == StreamType.AUDIO_LIVE_STREAM);
+        infoListAdapter.notifyDataSetChanged();
     }
 
     private void restoreFilterChecked(final Menu menu, final int itemId) {
@@ -1093,6 +1285,7 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         }
 
         super.handleResult(result);
+        filterMusicSuggestions();
     }
 
     private void handleSearchSuggestion() {
@@ -1151,6 +1344,7 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         // still holds the correct value during the error handling
         nextPage = result.getNextPage();
         super.handleNextItems(result);
+        filterMusicSuggestions();
     }
 
     @Override
