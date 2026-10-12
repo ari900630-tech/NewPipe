@@ -900,4 +900,25 @@
     <string name="api23_requirement_dialog_title">NewPipe מורידה את התמיכה באנדרואיד 5</string>
     <string name="api23_requirement_dialog_message">למרבה הצער, NewPipe תלויה במספר ספריות שהורידו את התמיכה באנדרואיד 5.0 ו־5.1. הגירסה החדשה הבאה תעבוד רק על מכשירים עם אנדרואיד 6 ומעלה, למרבה הצער. קרא עוד בבלוג.</string>
     <string name="api23_requirement_dialog_blogpost">פוסט בבלוג</string>
+    <string name="music_suggestions_title">הצעות למוזיקה</string>
+    <string name="music_suggestions_choose_genres">בחרו סוג אחד או יותר של מוזיקה פופולרית</string>
+    <string name="music_suggestions_show">הצגת שירים</string>
+    <string name="music_suggestions_select_at_least_one">יש לבחור לפחות סגנון מוזיקה אחד</string>
+    <string-array name="music_suggestion_genres">
+        <item>פופ</item>
+        <item>רוק</item>
+        <item>היפ־הופ וראפ</item>
+        <item>מוזיקה אלקטרונית ודאנס</item>
+        <item>אר אנד בי ונשמה</item>
+        <item>מוזיקה לטינית</item>
+        <item>קאנטרי</item>
+        <item>ג׳אז</item>
+        <item>מוזיקה קלאסית</item>
+        <item>רגאיי</item>
+        <item>קיי־פופ</item>
+        <item>מוזיקה ישראלית</item>
+        <item>מוזיקה ערבית</item>
+        <item>פסקולים מסרטים</item>
+        <item>מוזיקה רגועה ולואו־פיי</item>
+    </string-array>
 </resources>
