@@ -362,32 +362,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showMusicSuggestionsDialog() {
-        final String[] genres = getResources().getStringArray(R.array.music_suggestion_genres);
-        final boolean[] checked = new boolean[genres.length];
-        final AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.music_suggestions_choose_genres)
-                .setMultiChoiceItems(genres, checked, (d, which, isChecked) ->
-                        checked[which] = isChecked)
-                .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.music_suggestions_show, (d, which) -> {
-                    final StringBuilder query = new StringBuilder("popular music");
-                    int selected = 0;
-                    for (int i = 0; i < genres.length; i++) {
-                        if (checked[i]) {
-                            query.append(' ').append(genres[i]);
-                            selected++;
-                        }
-                    }
-                    if (selected == 0) {
-                        Toast.makeText(this, R.string.music_suggestions_select_at_least_one,
-                                Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    NavigationHelper.openSearchFragment(getSupportFragmentManager(),
-                            ServiceHelper.getSelectedServiceId(this), query.toString());
-                })
-                .create();
-        dialog.show();
+        // Open music suggestions directly; do not ask the user to choose genres.
+        NavigationHelper.openSearchFragment(getSupportFragmentManager(),
+                ServiceHelper.getSelectedServiceId(this), "popular music");
     }
 
     private void tabSelected(final MenuItem item) {
