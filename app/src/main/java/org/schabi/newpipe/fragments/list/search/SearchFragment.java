@@ -45,6 +45,7 @@ import androidx.collection.SparseArrayCompat;
 import androidx.core.text.HtmlCompat;
 import androidx.core.view.SoftwareKeyboardControllerCompat;
 import androidx.preference.PreferenceManager;
+import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -130,6 +131,8 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
     private final List<StreamInfoItem> pendingMusicDownloads = new ArrayList<>();
     private int pendingMusicDownloadIndex = 0;
     private boolean musicDownloadLifecycleCallbackRegistered = false;
+    @Nullable
+    private androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks musicDownloadLifecycleCallback;
 
     @State
     protected int serviceId = Constants.NO_SERVICE_ID;
@@ -271,6 +274,9 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         }
         showSearchOnStart();
         initSearchListeners();
+        if (musicSuggestionsMode) {
+            loadMusicSuggestionsFromListeningHistory();
+        }
     }
 
     private void updateService() {
@@ -561,6 +567,29 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         return true;
     }
 
+    private void loadMusicSuggestionsFromListeningHistory() {
+        disposables.add(historyRecordManager.getStreamHistorySortedById()
+                .firstOrError()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(history -> {
+                    if (!isAdded() || !musicSuggestionsMode || history.isEmpty()) {
+                        return;
+                    }
+                    // Use recent listening history locally to personalize the next suggestions.
+                    for (final org.schabi.newpipe.database.history.model.StreamHistoryEntry entry
+                            : history) {
+                        final String uploader = entry.toStreamInfoItem().getUploaderName();
+                        if (!TextUtils.isEmpty(uploader)) {
+                            search("songs like " + uploader + " official audio",
+                                    contentFilter, sortFilter);
+                            return;
+                        }
+                    }
+                }, error -> Log.w(TAG, "Could not personalize music suggestions from history",
+                        error)));
+    }
+
     private List<StreamInfoItem> getMusicItems() {
         final List<StreamInfoItem> songs = new ArrayList<>();
         for (final org.schabi.newpipe.extractor.InfoItem item : infoListAdapter.getItemsList()) {
@@ -640,7 +669,7 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         pendingMusicDownloads.addAll(songs);
         pendingMusicDownloadIndex = 0;
         if (!musicDownloadLifecycleCallbackRegistered) {
-            getFM().registerFragmentLifecycleCallbacks(
+            musicDownloadLifecycleCallback =
                     new androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
                         @Override
                         public void onFragmentDetached(
@@ -651,7 +680,8 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
                                 showNextMusicDownloadDialog();
                             }
                         }
-                    }, false);
+                    };
+            getFM().registerFragmentLifecycleCallbacks(musicDownloadLifecycleCallback, false);
             musicDownloadLifecycleCallbackRegistered = true;
         }
         showNextMusicDownloadDialog();
@@ -661,6 +691,11 @@ public class SearchFragment extends BaseListFragment<SearchInfo, ListExtractor.I
         if (pendingMusicDownloadIndex >= pendingMusicDownloads.size()) {
             pendingMusicDownloads.clear();
             pendingMusicDownloadIndex = 0;
+            if (musicDownloadLifecycleCallbackRegistered && musicDownloadLifecycleCallback != null) {
+                getFM().unregisterFragmentLifecycleCallbacks(musicDownloadLifecycleCallback);
+                musicDownloadLifecycleCallbackRegistered = false;
+                musicDownloadLifecycleCallback = null;
+            }
             return;
         }
         final StreamInfoItem item = pendingMusicDownloads.get(pendingMusicDownloadIndex++);
