@@ -362,9 +362,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showMusicSuggestionsDialog() {
-        // Open music suggestions directly; do not ask the user to choose genres.
-        NavigationHelper.openSearchFragment(getSupportFragmentManager(),
-                ServiceHelper.getSelectedServiceId(this), "popular music");
+        NavigationHelper.openMusicSuggestionsFragment(getSupportFragmentManager(),
+                ServiceHelper.getSelectedServiceId(this));
     }
 
     private void tabSelected(final MenuItem item) {
